@@ -27,15 +27,20 @@ static void uart_puthex(uint8_t val) {
 }
 
 #define TIMER0_MODE_HALF_MS     0x04U
-static void sleep(uint16_t milliseconds) {
+static __xdata uint32_t sleep_spin;  // bounds sleep() if timer 0 is stuck
+static void timer0_start(uint8_t clr, uint8_t mode, uint16_t count) __reentrant {
   REG_TIMER0_CSR = TIMER_CSR_CLEAR;
   REG_TIMER0_CSR = TIMER_CSR_EXPIRED;
-  REG_TIMER0_DIV = (REG_TIMER0_DIV & 0xF8) | TIMER0_MODE_HALF_MS;
-  uint16_t threshold = 2*milliseconds;
-  REG_TIMER0_THRESHOLD_HI = threshold >> 8;
-  REG_TIMER0_THRESHOLD_LO = threshold & 0xFF;
+  REG_TIMER0_DIV = (REG_TIMER0_DIV & ~clr) | mode;
+  REG_TIMER0_THRESHOLD_HI = count >> 8;
+  REG_TIMER0_THRESHOLD_LO = count & 0xFF;
   REG_TIMER0_CSR = TIMER_CSR_ENABLE;
-  while (!(REG_TIMER0_CSR & TIMER_CSR_EXPIRED));
+}
+
+static void sleep(uint16_t milliseconds) {
+  timer0_start(0x07, TIMER0_MODE_HALF_MS, 2 * milliseconds);
+  for (sleep_spin = (uint32_t)milliseconds << 16; sleep_spin && !(REG_TIMER0_CSR & TIMER_CSR_EXPIRED);
+       sleep_spin--);
 }
 
 static uint8_t is_usb2;
@@ -46,6 +51,8 @@ static uint32_t dma_dwords;    /* total dwords remaining for streaming transfer 
 #include "pcie_pio.h"
 #include "pcie_tuning.h"
 #include "i2c.h"
+#include "pd.h"
+#include "usb4.h"
 
 /* Hardware status packet */
 typedef struct {
@@ -247,6 +254,7 @@ static void handle_usb_control(void) {
       if (bank) DPX = bank;
       XDATA_REG8(addr) = val;
       if (bank) DPX = 0x00;
+      if (!bank) usb4_host_write(addr);
       usb_send_zlp();
     } else if (bmReq == (USB_SETUP_DIR_HOST_TO_DEV | USB_SETUP_TYPE_VENDOR) && bReq == 0xF2) {
       /* 0xF2: SRAM DMA — init DMA engine and arm for bulk transfer.
@@ -486,20 +494,10 @@ void int0_isr(void) __interrupt(0) {
 }
 
 void int1_isr(void) __interrupt(1) {
-  uart_puts("[int1]\n");
+  usb4_int1();
 }
 
-void main(void) {
-  // without this, UART has parity
-  REG_UART_LCR &= ~LCR_PARITY_MASK;
-
-  uart_puts("\n[BOOT]\n");
-  gpio_set(GPIO_BOB_FLT_N, GPIO_INPUT);
-  led_set_rgb(false, false, true);
-
-  // flash controller — needed for the USB serial OTP read on enumeration
-  flash_init();
-
+static void usb_boot(void) {
   usb_phy_tune();
 
   // PCIe TLP engine values that don't change + tuning
@@ -514,11 +512,28 @@ void main(void) {
   // Bring USB up. force_usb2=0: try SS first, fall back via LINK_EVENT.
   usb_init_controller(0);
 
-  // enable interrupts
-  IE = IE_EA | IE_EX0 | IE_EX1 | IE_ET0;
+  if (usb4_usb_mode_pd()) return;
 
   i2c_init();
   ina231_init();
+
+  // enable interrupts
+  IE = IE_EA | IE_EX0 | IE_EX1 | IE_ET0;
+}
+
+void main(void) {
+  // without this, UART has parity
+  REG_UART_LCR &= ~LCR_PARITY_MASK;
+
+  uart_puts("\n[BOOT]\n");
+  gpio_set(GPIO_BOB_FLT_N, GPIO_INPUT);
+  led_set_rgb(false, false, true);
+
+  // flash controller — needed for the USB serial OTP read on enumeration
+  flash_init();
+
+  usb4_init();
+  if (!usb4_boot_window()) usb_boot();
 
   while (1) {
     // DO NOT PUT ANYTHING HERE, EVERYTHING SHOULD BE HANDLED IN INTERRUPTS

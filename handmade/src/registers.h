@@ -70,6 +70,7 @@
 #define XDATA_REG8V(addr)  (*(__xdata volatile uint8_t *)(addr))
 #define XDATA_REG16V(addr) (*(__xdata volatile uint16_t *)(addr))
 #define XDATA_REG32V(addr) (*(__xdata volatile uint32_t *)(addr))
+#define REG_ADDR(r)        ((uint16_t)&(r))
 
 //=============================================================================
 // Memory Buffers
@@ -1741,6 +1742,209 @@
 #define REG_TIMER3_IDLE_TIMEOUT XDATA_REG8(0xCC24)
 
 //=============================================================================
+// USB4 / PD
+//=============================================================================
+
+#define   TIMER_DIV_IRQ_MASK      0x10  // any timer DIV; INT1 also needs INT_ENABLE_SYSTEM
+#define REG_TIMER_CCB0_DIV      XDATA_REG8(0xCCB0)
+#define REG_TIMER_CCB0_THRESHOLD_HI XDATA_REG8(0xCCB2)
+#define REG_TIMER_CCB0_THRESHOLD_LO XDATA_REG8(0xCCB3)
+#define REG_TIMER_CCE0_DIV      XDATA_REG8(0xCCE0)
+#define REG_TIMER_CCE0_CSR      XDATA_REG8(0xCCE1)
+#define REG_TIMER_CCE0_THRESHOLD_HI XDATA_REG8(0xCCE2)
+#define REG_TIMER_CCE0_THRESHOLD_LO XDATA_REG8(0xCCE3)
+#define REG_INT_C808            XDATA_REG8(0xC808)
+#define REG_PHY_CFG_C657        XDATA_REG8(0xC657)
+#define   PHY_C657_SLOT           0x04
+#define REG_PHY_EXT_5C          XDATA_REG8(0xC65C)
+#define REG_PHY_CTRL_C210       XDATA_REG8(0xC210)
+#define REG_PHY_CTRL_C211       XDATA_REG8(0xC211)
+#define REG_PHY_CTRL_C212       XDATA_REG8(0xC212)
+#define REG_PHY_CTRL_C214       XDATA_REG8(0xC214)
+#define REG_PHY_CTRL_C215       XDATA_REG8(0xC215)
+#define REG_PHY_CTRL_C216       XDATA_REG8(0xC216)
+#define REG_PHY_CTRL_C217       XDATA_REG8(0xC217)
+#define REG_PHY_CTRL_C21C       XDATA_REG8(0xC21C)
+#define REG_PHY_CTRL_C21D       XDATA_REG8(0xC21D)
+#define REG_PHY_CTRL_C21F       XDATA_REG8(0xC21F)
+#define REG_PHY_CFG_C610        XDATA_REG8(0xC610)
+#define REG_CFG_C8FF            XDATA_REG8(0xC8FF)
+
+#define   TYPEC_FE_HOLD           0x0F  // REG_PHY_LINK_TRIGGER
+// role unknown; set by the Type-C pulse, the host only attaches while they stay set
+#define   INT_ENABLE_BIT5         0x20  // REG_INT_ENABLE
+#define   INT_ENABLE_BIT6         0x40  // REG_INT_ENABLE
+#define   CPU_EXEC_CTRL_2_BIT2    0x04  // REG_CPU_EXEC_CTRL_2
+#define   CPU_EXEC_STATUS_2_BIT1  0x02  // REG_CPU_EXEC_STATUS_2
+#define   PHY_RXPLL_ASSERT        0xFF  // REG_PHY_RXPLL_RESET
+#define   PHY_LANE_PLL_RESTART    0xFF  // REG_PHY_CTRL_C20F
+#define   PCIE_LANE_EN            0x01  // REG_PCIE_LANE_CTRL_C659
+#define   PHY_PLUG_FLIP           0x01  // REG_PHY_VENDOR_CTRL_C6DB
+
+// USB4 lane PHY: lane 0 at C280, lane 1 at C300
+#define LPHY0_BASE              0xC280
+#define LPHY1_BASE              0xC300
+#define   LPHY_STRIDE             0x80
+#define   LPHY_CFG_14             0x14
+#define   LPHY_CFG_16             0x16
+#define   LPHY_CFG_27             0x27
+#define   LPHY_CFG_44             0x44
+#define   LPHY_CFG_5C             0x5C
+#define   LPHY_PLL_CTRL           0x28
+#define   LPHY_LANE_CTRL          0x43
+#define   LPHY_LANE_CFG           0x49
+#define   LPHY_TX_CTRL            0x4B
+#define   LPHY_TX_PRESET15        0x04  // LPHY_TX_CTRL
+#define   LPHY_STATUS             0x50
+#define   LPHY_PLL_LOCKED         0x20  // LPHY_STATUS
+#define   LPHY_RX_ADAPTED         0x40  // LPHY_STATUS
+#define   LPHY_RX_ADAPT_A         0x52
+#define   LPHY_RX_ADAPT_B_HI      0x59
+#define   LPHY_RX_ADAPT_B_LO      0x5A
+
+// Bank 1 (DPX = 1). Event registers are W1C with a mask register next to them.
+#define B1_SB_TX_FRAME_LEN      0x280C  // payload length + 8, or 3 for a header-only packet
+#define B1_SB_RX0_LEN           0x280D
+#define B1_SB_RX1_LEN           0x280E
+#define B1_SB_TX_CTRL           0x280F
+#define   SB_TX_HDR_ONLY          0x01
+#define B1_SB_TX_GO             0x2810
+#define B1_SB_TX_HDR            0x2815
+#define B1_SB_RX0_HDR           0x2818
+#define B1_SB_RX1_HDR           0x2819
+#define   SB_HDR_REQ              0x01
+#define   SB_HDR_LINK_MGMT        0x60
+#define B1_LSW0                 0x2820  // lane status words, complement at +2
+#define B1_LSW1                 0x2821
+#define B1_LSW2                 0x28A4
+#define B1_LSW3                 0x28A5
+#define B1_LSW_START            0x2824  // bits 2:1 first status slot
+#define B1_SB_EVT               0x2826
+#define B1_SB_EVT_MASK          0x2827
+#define   SB_EVT_L0_DISABLE       0x04
+#define   SB_EVT_L1_DISABLE       0x10
+#define B1_SB_RX0_STS           0x2828
+#define B1_SB_RX0_MASK          0x2829
+#define B1_SB_RX1_STS           0x282A
+#define B1_SB_RX1_MASK          0x282B
+#define B1_SB_RX2_STS           0x2881
+#define B1_SB_RX2_MASK          0x2882
+#define B1_SB_RX3_STS           0x2883
+#define B1_SB_RX3_MASK          0x2884
+#define   SB_RX_PRESENT           0x08
+#define   SB_RX_ARMED             0x10
+#define B1_SB_LINK_EVT          0x282C
+#define B1_SB_LINK_EVT_MASK     0x282D
+#define   SB_LINK_CONNECTED       0x01
+#define   SB_LINK_DISCONNECTED    0x02
+#define   SB_LINK_TX_DONE         0x04
+#define B1_LANE_TRAIN_SEL       0x2840
+#define B1_LANE0_TRIG           0x2850
+#define B1_LANE1_TRIG           0x285A
+#define   LANE_TRIG_START         0x01
+#define   LANE_TRIG_OS1           0x02
+#define   LANE_TRIG_HOLD          0x40
+#define B1_LANE0_STS            0x2856
+#define B1_LANE1_STS            0x2860
+#define   LANE_STS_TRAINED        0x01
+#define B1_LANE0_CTRL           0x2857
+#define B1_LANE1_CTRL           0x2861
+#define B1_LANE_CL0_ACK         0x2864
+#define B1_LINK_GEN_CTRL        0x2865
+#define   LINK_GEN_COMMIT         0x80
+#define   LINK_GEN_GEN3           0x40
+#define B1_LINK_EVT             0x2866
+#define B1_LINK_EVT_MASK        0x2867
+#define   LINK_EVT_BONDED         0x01
+#define   LINK_EVT_L0_ABORT       0x04
+#define   LINK_EVT_L0_BOND_FAIL   0x08
+#define   LINK_EVT_L1_ABORT       0x20
+#define   LINK_EVT_L1_BOND_FAIL   0x40
+#define   LINK_EVT_FAIL           0x6C
+#define B1_LANE0_TXFFE_HI       0x286A
+#define B1_LANE0_TXFFE_LO       0x286B
+#define B1_LANE1_TXFFE_HI       0x286C
+#define B1_LANE1_TXFFE_LO       0x286D
+#define B1_LANE_EVT             0x289E
+#define B1_LANE_EVT_MASK        0x289F
+#define   LANE_EVT_L0_CL0         0x01
+#define   LANE_EVT_L1_CL0         0x02
+#define   LANE_EVT_L0_TRAIN       0x10
+#define   LANE_EVT_L1_TRAIN       0x20
+#define B1_LANE0_STATE          0x28A0
+#define B1_LANE1_STATE          0x28A1
+#define   LANE_STATE_MASK         0x0F
+#define   LANE_STATE_CL0          0x02
+#define B1_LSW_EVT_MASK         0x28C8
+#define B1_LSW_EVT              0x28C9  // bit 4 + i: status slot i updated
+#define B1_SB_TX_BUF            0x2900
+#define B1_SB_TX_WLEN           0x2901
+#define B1_SB_TX_DATA           0x2902
+#define B1_SB_RX0_BUF           0x2A00
+#define B1_SB_RX1_BUF           0x2B00
+
+#define B1_LANE_MUX_CTL         0x0100
+#define B1_LANE_MUX_CFG         0x0101  // bits 1:0 plug orientation
+#define B1_LANE_MUX_FLIP        0x0102  // bits 1:0 plug orientation
+#define B1_LINK_RESYNC          0x0109
+#define   LINK_RESYNC_REQ         0x01
+#define B1_LANE_OS1             0x010B
+#define B1_CTL_RELEASE0         0x1201
+#define B1_CTL_RELEASE1         0x1202
+#define B1_CTL_REQ              0x1203  // W1C
+#define   CTL_REQ_HELD            0x80  // host control packet held in 0200-020F
+#define B1_PLUG_DELAY_LO        0x1204
+#define B1_PLUG_DELAY_HI        0x1205
+#define B1_CS4_NOTE             0x1207  // W1C
+#define   CS4_NOTE_WRITTEN        0x01
+#define B1_ENG_SAVE_TGT         0x120D
+#define B1_ENG_SAVE_IDX         0x120E
+#define B1_ENG_SAVE_HI          0x120F
+#define B1_ENG_BE               0x1234
+#define B1_ENG_TARGET           0x1235
+#define B1_ENG_INDEX            0x1236
+#define B1_ENG_CTL              0x1237
+#define   ENG_CTL_WRITE           0x80
+#define   ENG_CTL_INDEX_HI        0x1F
+#define B1_ENG_GO               0x1238
+#define   ENG_GO                  0x01  // clears when done
+#define B1_ENG_WDATA            0x123C
+#define B1_ENG_RDATA            0x1240
+#define B1_NOTE_MASK_LO         0x124C
+#define B1_NOTE_MASK_HI         0x124D
+#define B1_NOTE                 0x124E  // W1C: the host wrote a router dword
+#define   NOTE_CS26               0x01
+#define   NOTE_CS3                0x02
+#define   NOTE_CS5                0x04
+#define B1_NOTE_HI              0x124F
+#define   NOTE_HI_DW44            0x08  // router dword 0x44
+#define B1_CTL_RPL_MODE         0x128D
+#define   CTL_RPL_HW              0x80  // hardware answers the held packet
+#define B1_CTL_RPL_GO           0x128E
+#define B1_CTL_RPL              0x128F  // W1C
+#define   CTL_RPL_DONE            0x80
+#define B1_CTL_VALID            0x1291
+#define   CTL_PKT_VALID           0x40
+#define B1_EVT_MASK             0x1406
+#define B1_EVT                  0x1407
+#define   EVT_CTL                 0x01
+#define   EVT_PCIE                0x08
+#define B1_PCIE_EVT_MASK        0x1507
+#define B1_PCIE_EVT             0x1508
+#define   PCIE_EVT_ENABLE         0x10
+#define   PCIE_EVT_DISPATH        0x08
+#define   PCIE_EVT_USP_RST_DEASSERT 0x04
+#define   PCIE_EVT_USP_RST_ASSERT 0x02
+#define B1_USB3_EVT_MASK        0x1602
+#define B1_USB3_EVT             0x1603
+#define B1_DSP_CFG              0x4000  // switch downstream port config space
+#define B1_USP_CFG              0x5000  // switch upstream port config space
+#define   PCI_DEVCAP0             0x84
+#define   PCI_LNKCAP1             0x8D
+#define   PCI_LNKCAP3             0x8F
+#define   PCI_LNKCTL2             0xB0
+
+//=============================================================================
 // CPU Control Extended (0xCC30-0xCCFF)
 //=============================================================================
 /*
@@ -2327,6 +2531,44 @@
 #define REG_CMD_PARAM_H         XDATA_REG8(0xE433)
 #define REG_CMD_EXT_PARAM_0     XDATA_REG8(0xE434)
 #define REG_CMD_EXT_PARAM_1     XDATA_REG8(0xE435)
+
+//=============================================================================
+// USB Power Delivery PHY (0xE400-0xE4FF): the Command Engine above, as PD registers (volatile
+// where pd.h polls them)
+//=============================================================================
+#define REG_PD_CTRL             XDATA_REG8(0xE400)
+#define   PD_CTRL_ENABLE          0x80
+#define   PD_CTRL_RX_RING         0x40  // 16-slot RX ring instead of 1 slot
+#define REG_PD_CFG_E401         XDATA_REG8(0xE401)
+#define REG_PD_STATUS           XDATA_REG8V(0xE402)
+#define   PD_STATUS_BUSY          0x0E
+#define REG_PD_TX_LEN           XDATA_REG8(0xE403)  // header + data objects, in bytes
+#define REG_PD_TX_SOP           XDATA_REG8(0xE405)  // bits 2:0, 0 = SOP
+#define REG_PD_CFG_E406         XDATA_REG8(0xE406)
+#define REG_PD_CFG_E407         XDATA_REG8(0xE407)
+#define REG_PD_CFG_E408         XDATA_REG8(0xE408)
+#define REG_PD_CFG_E409         XDATA_REG8(0xE409)
+#define REG_PD_CFG_E40A         XDATA_REG8(0xE40A)
+#define REG_PD_CFG_E40B         XDATA_REG8V(0xE40B)
+#define REG_PD_CFG_E40D         XDATA_REG8(0xE40D)
+#define REG_PD_CFG_E40E         XDATA_REG8(0xE40E)
+#define REG_PD_INT              XDATA_REG8V(0xE40F)  // W1C
+#define   PD_INT_RX               0x01
+#define   PD_INT_HARD_RESET       0x20
+#define   PD_INT_SOFT_RESET       0x80
+#define REG_PD_INT2             XDATA_REG8V(0xE410)  // W1C
+#define   PD_INT2_TX_DISCARDED    0x40
+#define REG_PD_CFG_E411         XDATA_REG8(0xE411)
+#define REG_PD_CFG_E412         XDATA_REG8(0xE412)
+#define REG_PD_CFG_E413         XDATA_REG8(0xE413)
+#define REG_PD_TX_START         XDATA_REG8V(0xE41C)
+#define   PD_TX_START             0x01  // self-clears when sent
+#define REG_PD_TX_HDR_L         XDATA_REG8(0xE420)  // bits 7:6 spec rev, 4:0 message type
+#define REG_PD_TX_HDR_H         XDATA_REG8(0xE421)  // bits 6:4 object count, 3:1 message id
+#define REG_PD_TX_DATA(i)       XDATA_REG8(0xE422 + (i))
+#define REG_PD_RX(slot, i)      XDATA_REG8V(0xE440 + ((slot) << 5) + (i))  // 32 bytes per slot
+#define REG_PD_ATTACH           XDATA_REG8(0xE795)
+#define   PD_ATTACH_SRC           0x20  // Rp present; stays set after an unplug
 
 //=============================================================================
 // Timer/CPU Control (0xCC00-0xCCFF)
